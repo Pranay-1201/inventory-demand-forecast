@@ -33,10 +33,16 @@ if uploaded_file is not None:
 
         # required model features
         df['holidays'] = 0
-        df['lag_7'] = 0
-        df['lag_30'] = 0
-        df['rolling_7'] = 0
-        df['rolling_30'] = 0
+        filtered_df = df[(df['store'] == selected_store) & (df['item'] == selected_item)]
+
+        last_row = filtered_df.sort_values("date").iloc[-1]
+
+        lag_value = last_row['sales']
+
+        df['lag_7'] = lag_value
+        df['lag_30'] = lag_value
+        df['rolling_7'] = lag_value
+        df['rolling_30'] = lag_value
 
         # select store and item
         selected_store = st.selectbox("Select Store", sorted(df['store'].unique()))
