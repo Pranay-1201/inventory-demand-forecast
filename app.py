@@ -47,8 +47,8 @@ if uploaded_file is not None:
         df['rolling_30'] = lag_value
 
         # select store and item
-        selected_store = st.selectbox("Select Store", sorted(df['store'].unique()))
-        selected_item = st.selectbox("Select Item", sorted(df['item'].unique()))
+        selected_store = st.selectbox("Select Store", sorted(df['store'].unique()), key="store_select")
+        selected_item = st.selectbox("Select Item", sorted(df['item'].unique()), key="item_select")
 
         # forecast horizon
         num = st.number_input("Enter number", min_value=1, max_value=52, value=1)
