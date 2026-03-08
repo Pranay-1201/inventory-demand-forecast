@@ -31,24 +31,28 @@ if uploaded_file is not None:
         df['weekday'] = df['date'].dt.weekday
         df['weekend'] = (df['weekday'] >= 5).astype(int)
 
-        # required model features
+        # required model feature
         df['holidays'] = 0
-        selected_store = st.selectbox("Select Store", sorted(df['store'].unique()))
-        selected_item = st.selectbox("Select Item", sorted(df['item'].unique()))
-        filtered_df = df[(df['store'] == selected_store) & (df['item'] == selected_item)]
-
-        last_row = filtered_df.sort_values("date").iloc[-1]
-
-        lag_value = last_row['sales']
-
-        df['lag_7'] = lag_value
-        df['lag_30'] = lag_value
-        df['rolling_7'] = lag_value
-        df['rolling_30'] = lag_value
 
         # select store and item
-        selected_store = st.selectbox("Select Store", sorted(df['store'].unique()), key="store_select")
-        selected_item = st.selectbox("Select Item", sorted(df['item'].unique()), key="item_select")
+        selected_store = st.selectbox(
+            "Select Store",
+            sorted(df['store'].unique()),
+            key="store_select"
+        )
+
+        selected_item = st.selectbox(
+            "Select Item",
+            sorted(df['item'].unique()),
+            key="item_select"
+        )
+
+        # filter selected store and item
+        filtered_df = df[(df['store'] == selected_store) & (df['item'] == selected_item)]
+
+        # get last sales value
+        last_row = filtered_df.sort_values("date").iloc[-1]
+        lag_value = last_row['sales']
 
         # forecast horizon
         num = st.number_input("Enter number", min_value=1, max_value=52, value=1)
@@ -68,9 +72,7 @@ if uploaded_file is not None:
         else:
             forecast_days = num * 365
 
-        # filter selected store and item
-        filtered_df = df[(df['store'] == selected_store) & (df['item'] == selected_item)]
-
+        # last available date
         last_date = filtered_df['date'].max()
 
         # generate future dates
@@ -101,11 +103,11 @@ if uploaded_file is not None:
         future_df['rolling_30'] = lag_value
 
         # model input features
-        X_future = future_df[[
-            'store','item','day','month','year',
-            'weekend','holidays','weekday',
-            'lag_7','lag_30','rolling_7','rolling_30'
-        ]]
+        X_future = future_df[
+            ['store','item','day','month','year',
+             'weekend','holidays','weekday',
+             'lag_7','lag_30','rolling_7','rolling_30']
+        ]
 
         # load trained model
         model = joblib.load("inventory_demand_model.pkl")
@@ -113,16 +115,33 @@ if uploaded_file is not None:
         # predict
         preds = model.predict(X_future)
 
-        # rename predicted column to sales
-        future_df['sales'] = preds
+        # round predictions
+        future_df['sales'] = preds.round().astype(int)
 
-        st.write(f"Future demand for Store {selected_store} - Item {selected_item}")
+        st.subheader(f"Future demand for Store {selected_store} - Item {selected_item}")
 
-        # show only required columns
+        # show results
         result = future_df[['date','store','item','sales']]
         result['date'] = result['date'].dt.strftime('%d-%m-%Y')
 
         st.dataframe(result)
+
+        # demand forecast graph
+        st.subheader("Demand Forecast Trend")
+
+        chart_data = future_df.copy()
+        chart_data = chart_data.set_index('date')
+
+        st.line_chart(chart_data['sales'])
+
+        # inventory recommendation
+        total_demand = future_df['sales'].sum()
+
+        st.subheader("Inventory Recommendation")
+
+        st.write(f"Estimated demand for selected period: **{total_demand} units**")
+
+        st.write("Recommended inventory level should be slightly higher to prevent stockouts.")
 
         # download predictions
         st.download_button(
